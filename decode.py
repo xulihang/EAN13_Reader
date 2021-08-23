@@ -2,43 +2,132 @@ import cv2
 
 def decode(img):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    gray = cv2.medianBlur(gray, 3)
     cv2.imwrite("gray.jpg",gray)
     #ret, thresh =cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
     ret, thresh =cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     cv2.imwrite("thresh.jpg",thresh)
-    smooth(thresh)
-    cv2.imwrite("thresh-smooth.jpg",thresh)
     thresh = cv2.bitwise_not(thresh)
     ean13 = None
     is_valid = None
     #scan lines
-    line = thresh[50]
+    line = thresh[int(img.shape[0]/2)]
     
-    #read_bars(line)
-    ean13, is_valid = decode_line(line)
+    bars = read_bars(line)
+    left_guard, left_patterns, center_guard, right_patterns, right_guard = classify_bars(bars)
+    convert_patterns_to_length(left_patterns)
+    convert_patterns_to_length(right_patterns)
+    left_codes = read_patterns(left_patterns,is_left=True)
+    right_codes = read_patterns(right_patterns,is_left=False)
+    ean13 = get_ean13(left_codes,right_codes)
+    print("Detected code: "+ ean13)
+    is_valid = verify(ean13)
 
     return ean13, is_valid, thresh
             
-def smooth(thresh):
-    height = thresh.shape[0]
-    width = thresh.shape[1]
-    for x in range(width):
-        pixel_count = {}
-        max_count = 0
-        for y in range(height):
-            pixel = thresh[y][x]
-            count = 0
-            if pixel in pixel_count:
-                count = pixel_count[pixel]
-            count = count + 1
-            if count > max_count:
-                max_count = count
-                most_pixel = pixel
-            pixel_count[pixel] = count
-        for y in range(height):
-            thresh[y][x] = most_pixel
-            
+def convert_patterns_to_length(patterns):
+    for i in range(len(patterns)):
+        patterns[i] = len(patterns[i])
+
+def read_patterns(patterns,is_left=True):
+    print(len(patterns))
+    codes = []
+    for i in range(6):
+        start_index = i*4
+        sliced = patterns[start_index:start_index+4]
+        print(sliced)
+        m1 = sliced[0]
+        m2 = sliced[1]
+        m3 = sliced[2]
+        m4 = sliced[3]
+        total = m1+m2+m3+m4;
+        tmp1=(m1+m2)*1.0;
+        tmp2=(m2+m3)*1.0;
+        at1 = get_AT(tmp1/total)
+        at2 = get_AT(tmp2/total)
+        if is_left:
+            decoded = decode_left(at1,at2,m1,m2,m3,m4)
+        else:
+            decoded = decode_right(at1,at2,m1,m2,m3,m4)
+        codes.append(decoded)
+    return codes
+        
+        
+def get_AT(value):
+    if value < 2.5/7:
+        return 2
+    elif value < 3.5/7:
+        return 3
+    elif value < 4.5/7:
+        return 4
+    else:
+        return 5
+
+def decode_left(at1, at2, m1, m2, m3, m4):
+    patterns = {}
+    patterns["2,2"]={"code":"6","parity":"O"}
+    patterns["2,3"]={"code":"0","parity":"E"}
+    patterns["2,4"]={"code":"4","parity":"O"}
+    patterns["2,5"]={"code":"3","parity":"E"}
+    patterns["3,2"]={"code":"9","parity":"E"}
+    patterns["3,3"]={"code":"8","parity":"O","alter_code":"2"}
+    patterns["3,4"]={"code":"7","parity":"E","alter_code":"1"}
+    patterns["3,5"]={"code":"5","parity":"O"}
+    patterns["4,2"]={"code":"9","parity":"O"}
+    patterns["4,3"]={"code":"8","parity":"E","alter_code":"2"}
+    patterns["4,4"]={"code":"7","parity":"O","alter_code":"1"}
+    patterns["4,5"]={"code":"5","parity":"E"}
+    patterns["5,2"]={"code":"6","parity":"E"}
+    patterns["5,3"]={"code":"0","parity":"O"}
+    patterns["5,4"]={"code":"4","parity":"E"}
+    patterns["5,5"]={"code":"3","parity":"O"}
+    pattern_dict = patterns[str(at1) + "," + str(at2)]
+    code = 0
+    use_alternative = False
+    if int(at1) == 3 and int(at2) == 3:
+        if m3+1>=m4:
+            use_alternative = True
+    if int(at1) == 3 and int(at2) == 4:
+        if m2+1>=m3:
+            use_alternative = True
+    if int(at1) == 4 and int(at2) == 3:
+        if m2+1>=m1:
+            use_alternative = True
+    if int(at1) == 4 and int(at2) == 4:
+        if m1+1>=m2:
+            use_alternative = True            
+    if use_alternative:
+        code = pattern_dict["alter_code"]
+    else:
+        code = pattern_dict["code"]
+    final = {"code": code, "parity": pattern_dict["parity"]}
+    return final    
+    
+def decode_right(at1, at2, m1, m2, m3, m4):
+    patterns = {}
+    patterns["2,2"]={"code":"6"}
+    patterns["2,4"]={"code":"4"}
+    patterns["3,3"]={"code":"8","alter_code":"2"}
+    patterns["3,5"]={"code":"5"}
+    patterns["4,2"]={"code":"9"}
+    patterns["4,4"]={"code":"7","alter_code":"1"}
+    patterns["5,3"]={"code":"0"}
+    patterns["5,5"]={"code":"3"}
+    pattern_dict = patterns[str(at1) + "," + str(at2)]
+    code = 0
+    use_alternative = False
+    if int(at1) == 3 and int(at2) == 3:
+        if m3+1>=m4:
+            use_alternative = True
+    if int(at1) == 4 and int(at2) == 4:
+        if m1+1>=m2:
+            use_alternative = True            
+    if use_alternative:
+        code = pattern_dict["alter_code"]
+    else:
+        code = pattern_dict["code"]
+    final = {"code": code}
+    return final
+    
 def read_bars(line):
     replace_255_to_1(line)
     bars = []
@@ -51,50 +140,16 @@ def read_bars(line):
             current_length = 1
     #remove quite zone
     bars.pop(0)
+    print(len(bars))
     return bars
     
-def detect_module_size(bars):
-    size = len(bars[0])
-    for bar in bars:
-        size = min(len(bar),size)
-    return size
-    
-def decode_line(line):
-    replace_255_to_1(line)
-    print(line)
-    module_size = detect_module_size(read_bars(line))
-    data_string = array_as_string(line,module_size)
-    guard_pattern = "101"
-    center_guard_pattern = "01010"
-
-    begin_index = data_string.find(guard_pattern)+len(guard_pattern)
-    data_string_left = data_string[begin_index:-1]
-
-    left_codes = []
-    for i in range(6):
-        start_index = i*7
-        bar_pattern = data_string_left[start_index:start_index+7]
-        decoded = decode_left_bar_pattern(bar_pattern)
-        print(decoded)
-        left_codes.append(decoded)
-
-    data_string_left = data_string_left[6*7:-1]
-    
-    center_index = data_string_left.find(center_guard_pattern)+len(center_guard_pattern)
-    data_string_left = data_string_left[center_index:-1]
-
-    right_codes = []
-    for i in range(6):
-        start_index = i*7
-        bar_pattern = data_string_left[start_index:start_index+7]
-        decoded = decode_right_bar_pattern(bar_pattern)
-        print(decoded)
-        right_codes.append(decoded)
-    
-    ean13 = get_ean13(left_codes,right_codes)
-    print("Decoded code: " + ean13)
-    is_valid = verify(ean13)
-    return ean13, is_valid
+def classify_bars(bars):
+    left_guard = bars[0:3]
+    left_patterns = bars[3:27]
+    center_guard = bars[27:32]
+    right_patterns = bars[32:56]
+    right_guard = bars[56:59]
+    return left_guard, left_patterns, center_guard, right_patterns, right_guard
 
 def verify(ean13):
     weight = [1,3,1,3,1,3,1,3,1,3,1,3,1,3]
@@ -125,58 +180,10 @@ def get_ean13(left_codes,right_codes):
         ean13 = ean13 + str(code["code"])
     return ean13
     
-def array_as_string(array, module_size):
-    s = ""
-    for value in array:
-        s = s + str(value)
-    s=s.replace("1"*module_size,"1")
-    s=s.replace("0"*module_size,"0")
-    print("Data string: " + s)
-    return s
-    
 def replace_255_to_1(array):
     for i in range(len(array)):
         if array[i] == 255:
             array[i] = 1
-
-    
-def decode_left_bar_pattern(pattern):
-    left_pattern_dict = {}
-    left_pattern_dict["0001101"] = {"code":0,"parity":"O"}
-    left_pattern_dict["0100111"] = {"code":0,"parity":"E"}
-    left_pattern_dict["0011001"] = {"code":1,"parity":"O"}
-    left_pattern_dict["0110011"] = {"code":1,"parity":"E"}
-    left_pattern_dict["0010011"] = {"code":2,"parity":"O"}
-    left_pattern_dict["0011011"] = {"code":2,"parity":"E"}
-    left_pattern_dict["0111101"] = {"code":3,"parity":"O"}
-    left_pattern_dict["0100001"] = {"code":3,"parity":"E"}
-    left_pattern_dict["0100011"] = {"code":4,"parity":"O"}
-    left_pattern_dict["0011101"] = {"code":4,"parity":"E"}
-    left_pattern_dict["0110001"] = {"code":5,"parity":"O"}
-    left_pattern_dict["0111001"] = {"code":5,"parity":"E"}
-    left_pattern_dict["0101111"] = {"code":6,"parity":"O"}
-    left_pattern_dict["0000101"] = {"code":6,"parity":"E"}
-    left_pattern_dict["0111011"] = {"code":7,"parity":"O"}
-    left_pattern_dict["0010001"] = {"code":7,"parity":"E"}
-    left_pattern_dict["0110111"] = {"code":8,"parity":"O"}
-    left_pattern_dict["0001001"] = {"code":8,"parity":"E"}
-    left_pattern_dict["0001011"] = {"code":9,"parity":"O"}
-    left_pattern_dict["0010111"] = {"code":9,"parity":"E"}
-    return left_pattern_dict[pattern]
-    
-def decode_right_bar_pattern(pattern):
-    right_pattern_dict = {}
-    right_pattern_dict["1110010"] = {"code":0}
-    right_pattern_dict["1100110"] = {"code":1}
-    right_pattern_dict["1101100"] = {"code":2}
-    right_pattern_dict["1000010"] = {"code":3}
-    right_pattern_dict["1011100"] = {"code":4}
-    right_pattern_dict["1001110"] = {"code":5}
-    right_pattern_dict["1010000"] = {"code":6}
-    right_pattern_dict["1000100"] = {"code":7}
-    right_pattern_dict["1001000"] = {"code":8}
-    right_pattern_dict["1110100"] = {"code":9}
-    return right_pattern_dict[pattern]
 
 def get_first_digit(left_codes):
     parity_dict = {}
@@ -197,7 +204,8 @@ def get_first_digit(left_codes):
     
 
 if __name__ == "__main__":
-    img = cv2.imread("barcode.jpg")
+    img = cv2.imread("scanned.jpg")
+    #img = cv2.imread("WebTWAINImage.bmp")
     ean13, is_valid, thresh = decode(img)
     cv2.imshow("title", thresh);
     cv2.waitKey(0);
