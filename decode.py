@@ -2,28 +2,68 @@ import cv2
 
 def decode(img):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    #ret, thresh =cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
+    gray = cv2.medianBlur(gray, 3)
+    cv2.imwrite("gray.jpg",gray)
+    #ret, thresh =cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
     ret, thresh =cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    cv2.imwrite("thresh.jpg",thresh)
+    smooth(thresh)
+    cv2.imwrite("thresh-smooth.jpg",thresh)
     thresh = cv2.bitwise_not(thresh)
     ean13 = None
     is_valid = None
     #scan lines
-    for i in range(img.shape[0]):
-        line = thresh[i]
-        try:
-            ean13, is_valid = decode_line(line)
-            break
-        except Exception as e:
-            print(e)
-    return ean13, is_valid, thresh
+    line = thresh[50]
+    
+    #read_bars(line)
+    ean13, is_valid = decode_line(line)
 
+    return ean13, is_valid, thresh
+            
+def smooth(thresh):
+    height = thresh.shape[0]
+    width = thresh.shape[1]
+    for x in range(width):
+        pixel_count = {}
+        max_count = 0
+        for y in range(height):
+            pixel = thresh[y][x]
+            count = 0
+            if pixel in pixel_count:
+                count = pixel_count[pixel]
+            count = count + 1
+            if count > max_count:
+                max_count = count
+                most_pixel = pixel
+            pixel_count[pixel] = count
+        for y in range(height):
+            thresh[y][x] = most_pixel
+            
+def read_bars(line):
+    replace_255_to_1(line)
+    bars = []
+    current_length = 1
+    for i in range(len(line)-1):
+        if line[i] == line[i+1]:
+            current_length = current_length + 1
+        else:
+            bars.append(current_length * str(line[i]))
+            current_length = 1
+    #remove quite zone
+    bars.pop(0)
+    return bars
+    
+def detect_module_size(bars):
+    size = len(bars[0])
+    for bar in bars:
+        size = min(len(bar),size)
+    return size
     
 def decode_line(line):
     replace_255_to_1(line)
     print(line)
-    module_size = detect_module_size(line)
+    module_size = detect_module_size(read_bars(line))
     data_string = array_as_string(line,module_size)
-
     guard_pattern = "101"
     center_guard_pattern = "01010"
 
@@ -34,9 +74,12 @@ def decode_line(line):
     for i in range(6):
         start_index = i*7
         bar_pattern = data_string_left[start_index:start_index+7]
-        left_codes.append(decode_left_bar_pattern(bar_pattern))
+        decoded = decode_left_bar_pattern(bar_pattern)
+        print(decoded)
+        left_codes.append(decoded)
 
     data_string_left = data_string_left[6*7:-1]
+    
     center_index = data_string_left.find(center_guard_pattern)+len(center_guard_pattern)
     data_string_left = data_string_left[center_index:-1]
 
@@ -44,7 +87,9 @@ def decode_line(line):
     for i in range(6):
         start_index = i*7
         bar_pattern = data_string_left[start_index:start_index+7]
-        right_codes.append(decode_right_bar_pattern(bar_pattern))
+        decoded = decode_right_bar_pattern(bar_pattern)
+        print(decoded)
+        right_codes.append(decoded)
     
     ean13 = get_ean13(left_codes,right_codes)
     print("Decoded code: " + ean13)
@@ -79,19 +124,6 @@ def get_ean13(left_codes,right_codes):
     for code in right_codes:
         ean13 = ean13 + str(code["code"])
     return ean13
-
-def detect_module_size(array):
-    length_set = set()
-    current_length = 1
-    for i in range(len(array)-1):
-        if array[i] == array[i+1]:
-            current_length = current_length + 1
-        else:
-            length_set.add(current_length)
-            current_length = 1
-    sorted_list = sorted(length_set)
-    print("Detected module size: " + str(sorted_list[0]))
-    return sorted_list[0]
     
 def array_as_string(array, module_size):
     s = ""
@@ -163,10 +195,9 @@ def get_first_digit(left_codes):
         parity = parity + code["parity"]
     return parity_dict[parity]
     
-        
 
 if __name__ == "__main__":
-    img = cv2.imread("WebTWAINImage.bmp")
+    img = cv2.imread("barcode.jpg")
     ean13, is_valid, thresh = decode(img)
     cv2.imshow("title", thresh);
     cv2.waitKey(0);
