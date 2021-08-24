@@ -2,13 +2,10 @@ import cv2
 
 def decode(img):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    gray = cv2.medianBlur(gray, 3)
     cv2.imwrite("gray.jpg",gray)
     #ret, thresh =cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
     ret, thresh =cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     cv2.imwrite("thresh.jpg",thresh)
-    smooth(thresh)
-    cv2.imwrite("thresh-smooth.jpg",thresh)
     thresh = cv2.bitwise_not(thresh)
     ean13 = None
     is_valid = None
@@ -19,25 +16,6 @@ def decode(img):
     ean13, is_valid = decode_line(line)
 
     return ean13, is_valid, thresh
-            
-def smooth(thresh):
-    height = thresh.shape[0]
-    width = thresh.shape[1]
-    for x in range(width):
-        pixel_count = {}
-        max_count = 0
-        for y in range(height):
-            pixel = thresh[y][x]
-            count = 0
-            if pixel in pixel_count:
-                count = pixel_count[pixel]
-            count = count + 1
-            if count > max_count:
-                max_count = count
-                most_pixel = pixel
-            pixel_count[pixel] = count
-        for y in range(height):
-            thresh[y][x] = most_pixel
             
 def read_bars(line):
     replace_255_to_1(line)

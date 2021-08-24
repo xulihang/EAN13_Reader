@@ -3,15 +3,25 @@ import cv2
 def decode(img):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     cv2.imwrite("gray.jpg",gray)
-    #ret, thresh =cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
     ret, thresh =cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     cv2.imwrite("thresh.jpg",thresh)
     thresh = cv2.bitwise_not(thresh)
     ean13 = None
     is_valid = None
     #scan lines
-    line = thresh[int(img.shape[0]/2)]
+    for i in range(img.shape[0]-1,0,-1):
+        try:
+            ean13, is_valid = decode_line(thresh[i])
+        except Exception as e:
+            print(e)
+            print("failed")
+        if is_valid:
+            break
+        
+    return ean13, is_valid, thresh
     
+    
+def decode_line(line):
     bars = read_bars(line)
     left_guard, left_patterns, center_guard, right_patterns, right_guard = classify_bars(bars)
     convert_patterns_to_length(left_patterns)
@@ -21,8 +31,7 @@ def decode(img):
     ean13 = get_ean13(left_codes,right_codes)
     print("Detected code: "+ ean13)
     is_valid = verify(ean13)
-
-    return ean13, is_valid, thresh
+    return ean13, is_valid
             
 def convert_patterns_to_length(patterns):
     for i in range(len(patterns)):
