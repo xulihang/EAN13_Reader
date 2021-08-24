@@ -19,8 +19,7 @@ def decode(img):
             break
         
     return ean13, is_valid, thresh
-    
-    
+
 def decode_line(line):
     bars = read_bars(line)
     left_guard, left_patterns, center_guard, right_patterns, right_guard = classify_bars(bars)
