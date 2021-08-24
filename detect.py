@@ -10,11 +10,11 @@ def detect(img):
     resized = cv2.resize(img, dim, interpolation = cv2.INTER_AREA) #normalize
     
     gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
-    #ret, thresh =cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    ret, thresh =cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
-    
+    ret, thresh =cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    #ret, thresh =cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
+    thresh = cv2.bitwise_not(thresh)
     kernel = np.ones((3, 20), np.uint8)
-    thresh = cv2.erode(thresh, kernel)
+    thresh = cv2.dilate(thresh, kernel)
     #thresh = cv2.erode(thresh, kernel)
     #thresh = cv2.erode(thresh, kernel)
 
@@ -90,7 +90,7 @@ def crop_rect(rect, box, img):
 
 
 if __name__ == "__main__":    
-    image = cv2.imread("05102009153.jpg")
+    image = cv2.imread("PICTfgh0008.JPG")
     candidates = detect(image)
     for i in range(len(candidates)):
         candidate = candidates[i]
