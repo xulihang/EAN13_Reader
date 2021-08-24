@@ -24,6 +24,7 @@ def detect(img):
     
     candidates = []
     index = 0
+    added_index = []
     for cnt in contours:
         rect = cv2.minAreaRect(cnt)
         box = cv2.boxPoints(rect) 
@@ -31,11 +32,22 @@ def detect(img):
         area = cv2.contourArea(cnt)
         #the min width of EAN13 is 95 pixel
         width = box[1][0] - box[0][0]
-        if area>95*20 and width<0.9*img.shape[1]:
-            
-            cropped = crop_rect(rect,box,img)
-            candidate = {"cropped": cropped, "rect": rect}
-            candidates.append(candidate)
+        child_index = hierarchy[0][index][2]
+        parent_index = hierarchy[0][index][3]
+        
+        if area>95*50 and width<0.9*img.shape[1]:
+            #print("current_index: "+str(index))
+            has_overlapped = False
+            if child_index in added_index:
+                has_overlapped = True
+            if parent_index in added_index:
+                has_overlapped = True
+            if has_overlapped == False:
+                added_index.append(index)
+                #print(hierarchy[0][index])
+                cropped = crop_rect(rect,box,img)
+                candidate = {"cropped": cropped, "rect": rect}
+                candidates.append(candidate)
         index = index + 1
     return candidates
 
@@ -81,6 +93,7 @@ if __name__ == "__main__":
     image = cv2.imread("05102009153.jpg")
     candidates = detect(image)
     for i in range(len(candidates)):
-        cv2.imshow(str(i), candidates[i])
+        candidate = candidates[i]
+        cv2.imshow(str(i), candidate["cropped"])
     cv2.waitKey(0)
     cv2.destroyAllWindows()
