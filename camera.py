@@ -50,7 +50,6 @@ while True:
     scale=resized_width/width
     resized_height=int(height*scale)
     resized = cv2.resize(frame, (resized_width, resized_height))
-    resized_clone = resized.copy()
     
     result_dict = reader.decode_image(frame)
     results = result_dict["results"]
