@@ -19,7 +19,7 @@ def detect(img):
     #thresh = cv2.erode(thresh, kernel)
 
     original_sized = cv2.resize(thresh, (img.shape[1],img.shape[0]), interpolation = cv2.INTER_AREA)
-    cv2.imwrite("dilated.jpg",original_sized)
+    #cv2.imwrite("dilated.jpg",original_sized)
     contours, hierarchy = cv2.findContours(original_sized,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)    
     
     candidates = []
