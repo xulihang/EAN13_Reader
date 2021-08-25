@@ -30,11 +30,12 @@ def detect(img):
         box = cv2.boxPoints(rect) 
         box = np.int0(box)
         #area = cv2.contourArea(cnt)
-        width = box[1][0] - box[0][0]
+        cropped = crop_rect(rect,box,img)
+        width = cropped.shape[1]
         child_index = hierarchy[0][index][2]
         parent_index = hierarchy[0][index][3]
         #the min width of EAN13 is 95 pixel
-        if width>95 and width<0.9*img.shape[1]:
+        if width>95:
             #print("current_index: "+str(index))
             has_overlapped = False
             if child_index in added_index:
@@ -43,8 +44,6 @@ def detect(img):
             #    has_overlapped = True
             if has_overlapped == False:
                 added_index.append(index)
-                #print(hierarchy[0][index])
-                cropped = crop_rect(rect,box,img)
                 candidate = {"cropped": cropped, "rect": rect}
                 candidates.append(candidate)
         index = index + 1
@@ -89,7 +88,7 @@ def crop_rect(rect, box, img):
 
 
 if __name__ == "__main__":    
-    image = cv2.imread("raw.jpg")
+    image = cv2.imread("multiple.jpg")
     candidates = detect(image)
     for i in range(len(candidates)):
         candidate = candidates[i]
