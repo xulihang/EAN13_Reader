@@ -3,7 +3,7 @@ import detect as detector
 import cv2
 
 if __name__ == "__main__":    
-    image = cv2.imread("05102009158.jpg")
+    image = cv2.imread("images/0282925037198-01_N95-2592x1944.jpg")
     candidates = detector.detect(image)
     for i in range(len(candidates)):
         candidate = candidates[i]

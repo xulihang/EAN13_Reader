@@ -19,7 +19,7 @@ def detect(img):
     #thresh = cv2.erode(thresh, kernel)
 
     original_sized = cv2.resize(thresh, (img.shape[1],img.shape[0]), interpolation = cv2.INTER_AREA)
-    #cv2.imwrite("dilated.jpg",original_sized)
+    cv2.imwrite("dilated.jpg",original_sized)
     contours, hierarchy = cv2.findContours(original_sized,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)    
     
     candidates = []
@@ -29,19 +29,18 @@ def detect(img):
         rect = cv2.minAreaRect(cnt)
         box = cv2.boxPoints(rect) 
         box = np.int0(box)
-        area = cv2.contourArea(cnt)
-        #the min width of EAN13 is 95 pixel
+        #area = cv2.contourArea(cnt)
         width = box[1][0] - box[0][0]
         child_index = hierarchy[0][index][2]
         parent_index = hierarchy[0][index][3]
-        
-        if area>95*50 and width<0.9*img.shape[1]:
+        #the min width of EAN13 is 95 pixel
+        if width>95 and width<0.9*img.shape[1]:
             #print("current_index: "+str(index))
             has_overlapped = False
             if child_index in added_index:
                 has_overlapped = True
-            if parent_index in added_index:
-                has_overlapped = True
+            #if parent_index in added_index:
+            #    has_overlapped = True
             if has_overlapped == False:
                 added_index.append(index)
                 #print(hierarchy[0][index])
@@ -90,7 +89,7 @@ def crop_rect(rect, box, img):
 
 
 if __name__ == "__main__":    
-    image = cv2.imread("PICTfgh0008.JPG")
+    image = cv2.imread("images/05102009158.jpg")
     candidates = detect(image)
     for i in range(len(candidates)):
         candidate = candidates[i]

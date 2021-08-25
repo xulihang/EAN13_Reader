@@ -2,9 +2,10 @@ import cv2
 
 def decode(img):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    cv2.imwrite("gray.jpg",gray)
+    #cv2.imwrite("gray.jpg",gray)
     ret, thresh =cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    cv2.imwrite("thresh.jpg",thresh)
+    #ret, thresh =cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
+    #cv2.imwrite("thresh.jpg",thresh)
     thresh = cv2.bitwise_not(thresh)
     ean13 = None
     is_valid = None
