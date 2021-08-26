@@ -3,12 +3,13 @@ import read as reader
 import argparse
 import datetime
 import time
+import threading
 import cv2
 
 
 ap = argparse.ArgumentParser()
 ap.add_argument("-i", "--index", type=int, default=0, help="camera index")
-ap.add_argument("-f", "--fps", type=float, default=25.0, help="frame per second")
+ap.add_argument("-f", "--fps", type=float, default=5.0, help="frame per second")
 args = vars(ap.parse_args())
 
 fps = args["fps"]
@@ -19,6 +20,24 @@ size = (int(camera.get(cv2.CAP_PROP_FRAME_WIDTH)),
 print('size:'+repr(size))
 
 
+decoding = False
+
+detected_frames = []
+
+def decode(frame):
+    global decoding
+    decoding = True
+    result_dict = reader.decode_image(frame)
+    results = result_dict["results"]
+    if len(results)>0:
+        result = results[0]
+        barcode_text = result["barcodeText"]
+        print("Found barcode: "+barcode_text)
+        img = show_detected_barcode_frame(frame,resized_width,resized_height,result)
+        detected_frames.append(img)
+    decoding = False
+    
+
 def show_detected_barcode_frame(frame, resized_width,resized_height, result):
     frame_clone=frame.copy()
     cv2.line(frame_clone,(result["x1"],result["y1"]),(result["x2"],result["y2"]),(0,255,0),3)
@@ -26,9 +45,8 @@ def show_detected_barcode_frame(frame, resized_width,resized_height, result):
     cv2.line(frame_clone,(result["x3"],result["y3"]),(result["x4"],result["y4"]),(0,255,0),3)
     cv2.line(frame_clone,(result["x4"],result["y4"]),(result["x1"],result["y1"]),(0,255,0),3)
     cv2.putText(frame_clone, "Text: {}".format(result["barcodeText"]), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
-    resized=cv2.resize(frame_clone,(resized_width,resized_height))
-    cv2.imshow("Detected Frame", resized)
-    return resized
+    resized_frame=cv2.resize(frame_clone,(resized_width,resized_height))
+    return resized_frame
 
 while True:
     start = time.time()
@@ -51,15 +69,13 @@ while True:
     resized_height=int(height*scale)
     resized = cv2.resize(frame, (resized_width, resized_height))
     
-    result_dict = reader.decode_image(frame)
-    results = result_dict["results"]
-    if len(results)>0:
-        result = results[0]
-        barcode_text=result["barcodeText"]
-        print("Found barcode: "+barcode_text)
-
-        img = show_detected_barcode_frame(frame,resized_width,resized_height,result)
+    if decoding == False:
+        threading.Thread(target=decode, args=(resized,)).start()
+    else:
+        print("Still decoding. Skip this frame.")
     
+    if len(detected_frames)>0:
+        cv2.imshow("Detected Frame", detected_frames.pop(0))
     cv2.imshow("Video Stream", resized)
     
     key = cv2.waitKey(1) & 0xFF
