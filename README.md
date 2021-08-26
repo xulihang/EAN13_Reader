@@ -21,7 +21,7 @@ Files explaination:
 
 ## Workflow
 
-The program first detects possible barcodes areas and then tries to decode them. Here is the specific workflows of detection and decoding.
+The program first detects possible barcode areas and then tries to decode them. Here are the specific workflows of detection and decoding.
 
 Detection workflow:
 
