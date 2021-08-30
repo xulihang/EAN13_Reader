@@ -38,6 +38,9 @@ Decoding workflow:
 2. Thresholding
 3. The decoding is done line by line from the bottom. It will read bars and decode their patterns following the EAN13 specification
 
+## Benchmark
+
+The reader is integrated in the [barcode performacne test tool](https://github.com/xulihang/Barcode-Reading-Performance-Test).
 
 ## References
 
