@@ -10,11 +10,14 @@ import cv2
 ap = argparse.ArgumentParser()
 ap.add_argument("-i", "--index", type=int, default=0, help="camera index")
 ap.add_argument("-f", "--fps", type=float, default=5.0, help="frame per second")
+ap.add_argument("-vw", "--width", type=int, default=640, help="video width")
+ap.add_argument("-vh", "--height", type=int, default=480, help="video height")
 args = vars(ap.parse_args())
 
 fps = args["fps"]
 camera = cv2.VideoCapture(args["index"])
-
+camera.set(cv2.CAP_PROP_FRAME_WIDTH,args["width"])
+camera.set(cv2.CAP_PROP_FRAME_HEIGHT,args["height"])
 size = (int(camera.get(cv2.CAP_PROP_FRAME_WIDTH)),
             int(camera.get(cv2.CAP_PROP_FRAME_HEIGHT)))
 print('size:'+repr(size))
